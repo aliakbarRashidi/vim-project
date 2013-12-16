@@ -5,7 +5,6 @@ function! s:full_path(arg) abort
   let arg = substitute(a:arg, '\v\C/+$', '', '')
   let arg = resolve(fnamemodify(arg, ":p"))
   let arg = substitute(arg, '\v\C\\+$', '', '')
-  let arg = substitute(arg, '\v\C/+$', '', '')
   return arg
 endfunction
 
@@ -71,11 +70,7 @@ function! s:callback(title) abort
   let callbacks = project["callbacks"]
   if len(callbacks) > 0
     for callback in callbacks
-      if type(callback) == type("")
-        execute "call ".callback."(\"".a:title."\")"
-      else
-        call callback.invoke(a:title)
-      endif
+      execute "call ".callback."(\"".a:title."\")"
     endfor
   endif
 endfunction
@@ -137,17 +132,17 @@ function! project#config#welcome() abort
   for v in projects
     if v["type"] == "project"
       let file = v["project"]
-      let lcd = " \\| lcd ".v["project"]
+      let cd = " \\| cd ".v["project"]
     else
       let file = v["event"]
-      let lcd = ""
+      let cd = ""
     endif
     let line = printf(printf('   ['. cnt .']'.padding.'%s '.file, '%-'.max_title_length.'s'), v["title"])
     call append('$', line)
     if get(g:, 'project_use_nerdtree', 0) && isdirectory(file)
-      execute 'nnoremap <silent><buffer> '. cnt .' :enew \| NERDTree '. s:escape(file).lcd."<cr>"
+      execute 'nnoremap <silent><buffer> '. cnt .' :enew \| NERDTree '. s:escape(file).cd."<cr>"
     else
-      execute 'nnoremap <silent><buffer> '. cnt .' :edit '. s:escape(file).lcd."<cr>"
+      execute 'nnoremap <silent><buffer> '. cnt .' :edit '. s:escape(file).cd."<cr>"
     endif
     let cnt += 1
     if cnt == 10
@@ -209,15 +204,18 @@ function! s:setup() abort
     let projects = sort(values(s:projects), "s:sort")
     for v in projects
       if v["type"] == "project"
-        let autocmd = "autocmd BufEnter ".s:back_to_slash(v["event"])." lcd ".v["project"]." | let b:title = \"".v["title"]."\" | call s:callback(\"".v["title"]."\")"
+        let autocmd = "autocmd BufEnter ".s:back_to_slash(v["event"])." cd ".v["project"]." | let b:title = \"".v["title"]."\" | call s:callback(\"".v["title"]."\")"
       else
         let autocmd = "autocmd BufEnter ".s:back_to_slash(v["event"])." let b:title = \"".v["title"]."\" | call s:callback(\"".v["title"]."\")"
       endif
       execute autocmd
     endfor
-    if has("gui_running")
-      au BufEnter,BufRead,WinEnter * call TabTitle()
-      au BufEnter,BufRead,WinEnter * let &titlestring = getcwd()
+    let set_title = get(g:, 'project_set_title', 1)
+    if set_title
+      if has("gui_running")
+        au BufEnter,BufRead,WinEnter * call TabTitle()
+        au BufEnter,BufRead,WinEnter * let &titlestring = getcwd()
+      endif
     endif
   augroup END
 endfunction
